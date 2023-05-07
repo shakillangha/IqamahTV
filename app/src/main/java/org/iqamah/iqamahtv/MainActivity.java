@@ -25,131 +25,156 @@ import org.json.JSONObject;
 import org.json.JSONArray;
 import org.json.JSONException;
 
+import java.util.Locale;
+import java.util.List;
+import java.util.ArrayList;
+
 /*
  * Main Activity class that loads {@link MainFragment}.
  */
 public class MainActivity extends FragmentActivity {
+
+    private EditText masjidIdEditText;
+    private Button getPrayerTimesButton;
+    private TableLayout prayerTimesTable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Button getPrayerTimesButton = findViewById(R.id.get_prayer_times_button);
+        masjidIdEditText = findViewById(R.id.masjidIdEditText);
+        masjidIdEditText.setText("ChIJm53YZjj9zUwRzCeuSonVU1Q"); // set default value
+
+        getPrayerTimesButton = findViewById(R.id.getPrayerTimesButton);
+        prayerTimesTable = findViewById(R.id.prayerTimesTable);
+
         getPrayerTimesButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) {
-                EditText masjidIdEditText = findViewById(R.id.masjid_id_edit_text);
+            public void onClick(View v) {
                 String masjidId = masjidIdEditText.getText().toString();
+                String url = "https://iqamah.org/getMasjid/" + masjidId + ".json";
 
-                if (masjidId.isEmpty()) {
-                    Toast.makeText(getApplicationContext(), "Please enter a masjid ID", Toast.LENGTH_SHORT).show();
-                } else {
-                    String url = "https://iqamah.org/getMasjid/" + masjidId + ".json";
-                    JsonArrayRequest jsonObjectRequest = new JsonArrayRequest(Request.Method.GET, url, null,
-                            new Response.Listener<JSONArray>() {
-                                @Override
-                                public void onResponse(JSONArray response) {
-                                    displayPrayerTimes(masjidId, response);
+                RequestQueue queue = Volley.newRequestQueue(getApplicationContext());
+
+                JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(Request.Method.GET, url, null,
+                        new Response.Listener<JSONArray>() {
+                            @Override
+                            public void onResponse(JSONArray response) {
+                                try {
+                                    SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy", Locale.US);
+
+                                    List<PrayerTimes> prayerTimesList = new ArrayList<>();
+                                    for (int i = 0; i < response.length(); i++) {
+                                        JSONObject prayerTimeJson = response.getJSONObject(i);
+                                        PrayerTimes prayerTime = new PrayerTimes(prayerTimeJson);
+                                        prayerTimesList.add(prayerTime);
+                                    }
+                                    PrayerTimes[] prayerTimes = prayerTimesList.toArray(new PrayerTimes[0]);
+
+                                    // find prayer times for today's date
+                                    Date currentDate = new Date();
+                                    PrayerTimes prayerTimeForToday = null;
+                                    for (PrayerTimes prayerTime : prayerTimes) {
+                                        if (dateFormat.format(prayerTime.getDate()).equals(dateFormat.format(currentDate))) {
+                                            prayerTimeForToday = prayerTime;
+                                            break;
+                                        }
+                                    }
+
+                                    if (prayerTimeForToday != null) {
+                                        displayPrayerTimes(prayerTimeForToday);
+                                    } else {
+                                        Toast.makeText(getApplicationContext(), "No prayer times available for today", Toast.LENGTH_SHORT).show();
+                                    }
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                    Toast.makeText(getApplicationContext(), "Error parsing JSON response", Toast.LENGTH_SHORT).show();
                                 }
-                            }, new Response.ErrorListener() {
-                        @Override
-                        public void onErrorResponse(VolleyError error) {
-                            Toast.makeText(getApplicationContext(), "Error retrieving prayer times", Toast.LENGTH_SHORT).show();
-                            error.printStackTrace();
-                        }
-                    });
-                    RequestQueue requestQueue = Volley.newRequestQueue(getApplicationContext());
-                    requestQueue.add(jsonObjectRequest);
-                }
+                            }
+                        },
+                        new Response.ErrorListener() {
+                            @Override
+                            public void onErrorResponse(VolleyError error) {
+                                error.printStackTrace();
+                                Toast.makeText(getApplicationContext(), "Error fetching prayer times", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+
+                queue.add(jsonArrayRequest);
             }
         });
     }
 
-    private void displayPrayerTimes(String masjidId, JSONArray response) {
-        try {
-            Gson gson = new Gson();
-            PrayerTimes[] prayerTimesArray = gson.fromJson(response.toString(), PrayerTimes[].class);
 
-            // Get the current date in the "M/d/yyyy" format
-            DateFormat dateFormat = new SimpleDateFormat("M/d/yyyy");
-            Date currentDate = new Date();
-            String currentDateString = dateFormat.format(currentDate);
+    private void displayPrayerTimes(PrayerTimes prayerTime) {
+        SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a", Locale.US);
+        SimpleDateFormat dateFormat = new SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.US);
 
-            // Find the prayer times for today's date
-            PrayerTimes prayerTimesToday = null;
-            for (PrayerTimes prayerTimes : prayerTimesArray) {
-                if (prayerTimes.getDate().equals(currentDateString)) {
-                    prayerTimesToday = prayerTimes;
+        TextView dateTextView = findViewById(R.id.dateTextView);
+        dateTextView.setText(dateFormat.format(prayerTime.getDate()));
+
+        ArrayList<PrayerTimeItem> prayerTimes = prayerTime.getPrayerTimes();
+        for (PrayerTimeItem prayerTimeItem : prayerTimes) {
+            String prayerName = prayerTimeItem.getPrayerName();
+            Date startTime = prayerTimeItem.getStartTime();
+            Date endTime = prayerTimeItem.getEndTime();
+
+            String startTimeString = "";
+            String endTimeString = "";
+            if (startTime != null) {
+                startTimeString = timeFormat.format(startTime);
+            }
+
+            if (endTime != null) {
+                endTimeString = timeFormat.format(endTime);
+            }
+            switch (prayerName) {
+                case "Fajr":
+                    displayPrayerTimesRow("Fajr", startTimeString, endTimeString);
                     break;
-                }
+                case "Sunrise":
+                    displayPrayerTimesRow("Sunrise", startTimeString, endTimeString);
+                    break;
+                case "Zuhr":
+                    displayPrayerTimesRow("Zuhr", startTimeString, endTimeString);
+                    break;
+                case "Asr":
+                    displayPrayerTimesRow("Asr", startTimeString, endTimeString);
+                    break;
+                case "Maghrib":
+                    displayPrayerTimesRow("Maghrib", startTimeString, endTimeString);
+                    break;
+                case "Isha":
+                    displayPrayerTimesRow("Isha", startTimeString, endTimeString);
+                    break;
+                case "Jumua":
+                    displayPrayerTimesRow("Jumua", startTimeString, endTimeString);
+                    break;
             }
-
-            // Get the prayer times for today's date
-            PrayerTime fajrTime = prayerTimesToday.getFajr();
-            PrayerTime zuhrTime = prayerTimesToday.getZuhr();
-            PrayerTime asrTime = prayerTimesToday.getAsr();
-            PrayerTime maghribTime = prayerTimesToday.getMaghrib();
-            PrayerTime ishaTime = prayerTimesToday.getIsha();
-
-            // Create the table rows and text views for the prayer times
-            TableLayout tableLayout = findViewById(R.id.prayer_times_table);
-            TableRow fajrRow = new TableRow(this);
-            TableRow zuhrRow = new TableRow(this);
-            TableRow asrRow = new TableRow(this);
-            TableRow maghribRow = new TableRow(this);
-            TableRow ishaRow = new TableRow(this);
-
-            TextView fajrTitle = new TextView(this);
-            TextView fajrTimeText = new TextView(this);
-            fajrTitle.setText("Fajr");
-            fajrTimeText.setText(fajrTime.getAzaan() + " / " + fajrTime.getIqamah());
-            fajrRow.addView(fajrTitle);
-            fajrRow.addView(fajrTimeText);
-
-            TextView zuhrTitle = new TextView(this);
-            TextView zuhrTimeText = new TextView(this);
-            zuhrTitle.setText("Zuhr");
-            zuhrTimeText.setText(zuhrTime.getAzaan() + " / " + zuhrTime.getIqamah());
-            zuhrRow.addView(zuhrTitle);
-            zuhrRow.addView(zuhrTimeText);
-
-            TextView asrTitle = new TextView(this);
-            TextView asrTimeText = new TextView(this);
-            asrTitle.setText("Asr");
-            asrTimeText.setText(asrTime.getAzaan() + " / " + asrTime.getIqamah());
-            asrRow.addView(asrTitle);
-            asrRow.addView(asrTimeText);
-
-            TextView maghribTitle = new TextView(this);
-            TextView maghribTimeText = new TextView(this);
-            maghribTitle.setText("Maghrib");
-            maghribTimeText.setText(maghribTime.getAzaan() + " / " + maghribTime.getIqamah());
-            maghribRow.addView(maghribTitle);
-            maghribRow.addView(maghribTimeText);
-
-            TextView ishaTitle = new TextView(this);
-            TextView ishaTimeText = new TextView(this);
-            ishaTitle.setText("Isha");
-            ishaTimeText.setText(ishaTime.getAzaan() + " / " + ishaTime.getIqamah());
-            ishaRow.addView(ishaTitle);
-            ishaRow.addView(ishaTimeText);
-
-            // Add the rows to the table layout
-            if (currentDateString.equals(prayerTimesToday.getDate())) {
-                tableLayout.addView(fajrRow);
-                tableLayout.addView(zuhrRow);
-                tableLayout.addView(asrRow);
-                tableLayout.addView(maghribRow);
-                tableLayout.addView(ishaRow);
-            } else {
-                Toast.makeText(getApplicationContext(), "No prayer times available for today", Toast.LENGTH_SHORT).show();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(getApplicationContext(), "Error getting prayer times data", Toast.LENGTH_SHORT).show();
         }
-
     }
+
+    private void displayPrayerTimesRow(String prayerName, String azaanTime, String iqamahTime) {
+        TableRow row = new TableRow(this);
+
+        TextView prayerNameTextView = new TextView(this);
+        prayerNameTextView.setText(prayerName);
+        prayerNameTextView.setPadding(16, 16, 16, 16);
+        row.addView(prayerNameTextView);
+
+        TextView azaanTextView = new TextView(this);
+        azaanTextView.setText(azaanTime);
+        azaanTextView.setPadding(16, 16, 16, 16);
+        row.addView(azaanTextView);
+
+        TextView iqamahTextView = new TextView(this);
+        iqamahTextView.setText(iqamahTime);
+        iqamahTextView.setPadding(16, 16, 16, 16);
+        row.addView(iqamahTextView);
+
+        prayerTimesTable.addView(row);
+    }
+
 }
 

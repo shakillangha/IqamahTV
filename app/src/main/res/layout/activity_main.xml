@@ -1,45 +1,77 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main_browse_fragment"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    tools:context=".MainActivity">
 
     <TextView
+        android:id="@+id/masjidIdTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Enter Masjid ID:" />
+        android:text="Masjid ID:" />
 
     <EditText
-        android:id="@+id/masjid_id_edit_text"
+        android:id="@+id/masjidIdEditText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Masjid ID"
-        android:text="ChIJm53YZjj9zUwRzCeuSonVU1Q"
-        android:inputType="text"/>
+        android:layout_gravity="center"
+        android:hint="Enter Masjid ID"
+        android:inputType="text" />
 
     <Button
-        android:id="@+id/get_prayer_times_button"
+        android:id="@+id/getPrayerTimesButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="center"
         android:text="Get Prayer Times" />
 
-    <ScrollView
+    <TextView
+        android:id="@+id/dateTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:textAppearance="@style/TextAppearance.Leanback.Row.Header" />
+
+    <TableLayout
+        android:id="@+id/prayerTimesTable"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="wrap_content"
+        android:stretchColumns="*">
 
-        <TableLayout
-            android:id="@+id/prayer_times_table"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+        <TableRow>
 
-        </TableLayout>
+            <TextView
+                android:id="@+id/prayerNameTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Prayer"
+                android:textAppearance="@style/Theme.Leanback.Details" />
 
-    </ScrollView>
+            <TextView
+                android:id="@+id/azaanTimeTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Azaan"
+                android:textAppearance="@style/Theme.Leanback.Details" />
+
+            <TextView
+                android:id="@+id/iqamahTimeTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Iqamah"
+                android:textAppearance="@style/Theme.Leanback.Details" />
+
+        </TableRow>
+
+    </TableLayout>
 
 </LinearLayout>
+
 
 
