@@ -1,0 +1,4 @@
+<resources>
+
+    <style name="Theme.IqamahTV" parent="@style/Theme.Leanback" />
+</resources>
